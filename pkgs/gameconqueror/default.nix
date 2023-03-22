@@ -19,6 +19,7 @@
 , wrapGAppsHook
 , gobject-introspection
 , polkit
+, writeText
 }:
 
 let 
