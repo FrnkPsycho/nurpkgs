@@ -49,7 +49,7 @@ let
           from setuptools import setup
           setup(
             name='${pname}',
-            version='${version}-test',
+            version='${version}',
             packages=['gameconqueror'],
           )
         '';
