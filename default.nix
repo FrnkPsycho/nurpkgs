@@ -16,6 +16,7 @@
 
   example-package = pkgs.callPackage ./pkgs/example-package { };
   idafree = pkgs.callPackage ./pkgs/idafree { }; 
+  gameconqueror = pkgs.callPackage ./pkgs/gameconqueror {};
   # some-qt5-package = pkgs.libsForQt5.callPackage ./pkgs/some-qt5-package { };
   # ...
 }
