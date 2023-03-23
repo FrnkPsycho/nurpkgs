@@ -1,30 +1,31 @@
 { lib
-, stdenv
 , autoconf
 , automake
-, makeWrapper
+, fetchFromGitHub
+, glib
+, gobject-introspection
+, gtk3
 , intltool
 , libtool
 , python3
-, fetchFromGitHub
-, readline
 , python310Packages
-, gtk3
-, cairo
-, gnome
-, gdk-pixbuf
-, glibc
-, dbus
-, libnotify
+, readline
+, stdenv
 , wrapGAppsHook
-, gobject-introspection
-, polkit
-, writeText
+, desktop-file-utils
+, appstream-glib
+, pango
+, gdk-pixbuf
+, libnotify
+, libadwaita
+, gsettings-desktop-schemas
+, substituteAll
 }:
 
-let 
-  version = "0.17";
+python3.pkgs.buildPythonApplication rec {
+  format = "other";
   pname = "gameconqueror";
+  version = "0.17";
 
   src = fetchFromGitHub {
     owner  = "scanmem";
@@ -32,75 +33,53 @@ let
     rev    = "v${version}";
     sha256 = "17p8sh0rj8yqz36ria5bp48c8523zzw3y9g8sbm2jwq7sc27i7s9";
   };
-  
-  gameconquerorPython = python3.pkgs.buildPythonPackage rec {
-    inherit pname version src;
-    nativeBuildInputs = [ 
-      wrapGAppsHook
-      gobject-introspection
-    ];
-    # propagatedBuildInputs = [
-    #   gtk3
-    #   python3.pkgs.pygobject3
-    # ];
-    configurePhase = 
-      let
-        setupPy = writeText "setup.py" ''
-          from setuptools import setup
-          setup(
-            name='${pname}',
-            version='${version}',
-            packages=['gameconqueror'],
-          )
-        '';
-        initPy = writeText "__init__.py" ''
-            PROGRAM_NAME = 'GameConqueror'
-            PACKAGE_NAME = '${pname}'
-            PACKAGE_VERSION = '${version}'
-        '';
-      in
-      ''
-        ln -s ${setupPy} setup.py
-        mv -v gui gameconqueror
-        ln -s ${initPy} gameconqueror/__init__.py
-      '';
-    doCheck = false;
-  };
 
-  pythonPreBuilt = python3.withPackages ( ps: with ps; [
-    # dbus-python
-    gtk3
-    pygobject3
-    gameconquerorPython
-    
-  ]);
-in
+  patches = [
+    # Make PyGObject’s gi library available.
+    (substituteAll {
+      src = ./fix-paths.patch;
+      pythonPaths = lib.concatMapStringsSep ", " (pkg: "'${pkg}/${python3.sitePackages}'") [
+        python3.pkgs.pygobject3
+      ];
+    })
+  ];
 
-stdenv.mkDerivation rec {
-  inherit pname version src;
-  nativeBuildInputs = [ 
+  nativeBuildInputs = [
     autoconf
-    automake 
-    intltool 
+    automake
+    intltool
     libtool
-    # pkgconfig
-    # wrapGAppsHook
-    # gobject-introspection
-  ];
-
-  buildInputs = [ 
-    gtk3
-    readline
-    polkit
-    libnotify
-    pythonPreBuilt
     gobject-introspection
+    wrapGAppsHook
+    # desktop-file-utils
+    ];
+
+  buildInputs = [
+    # wrapGAppsHook
+    readline
+    gtk3
+    libnotify
+    gsettings-desktop-schemas
+    # (python3.withPackages (ps: with ps; [ pygobject3 ]))
   ];
 
-  # passthru = { pythonModule = python3; };
-  # strictDeps = false;
-  doCheck = false;
-  # dontWrapGApps = true;
+  propagatedBuildInputs = with python3.pkgs; [
+    pygobject3
+    pycairo
+    dbus-python
+  ] ++ [
+    gobject-introspection
+  ]
+  ;
+
+
+  preFixup = ''
+    makeWrapperArgs+=("''${gappsWrapperArgs[@]}")
+  '';
+
+  strictDeps = false; # broken with gobject-introspection setup hook https://github.com/NixOS/nixpkgs/issues/56943
+  dontWrapGApps = true; # prevent double wrapping
+  # doCheck = false;
 
   preConfigure = ''
     ./autogen.sh
@@ -108,15 +87,10 @@ stdenv.mkDerivation rec {
 
   configureFlags = ["--enable-gui"];
 
-  # postInstall = ''
-  #   install -D -m0644 org.freedesktop.gameconqueror.policy \
-  #     $out/share/polkit-1/actions/org.freedesktop.gameconqueror.policy
-  #   '';
-
   meta = with lib; {
-    homepage = "https://github.com/scanmem/scanmem";
-    description = "official GUI for scanmem, a Memory scanner for finding and poking addresses in executing processes";
-    maintainers = [  ];
+    homepage = "https://github.com/scanmem/scanmem/tree/master/gui";
+    description = "Graphical game cheating tool under Linux, a frontend for scanmem.";
+    maintainers = [ ];
     platforms = platforms.linux;
     license = licenses.gpl3;
   };

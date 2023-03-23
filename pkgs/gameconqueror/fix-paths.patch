@@ -1,0 +1,15 @@
+diff --git a/gui/GameConqueror.py b/gui/GameConqueror.py
+index 47f3f82..397e385 100644
+--- a/gui/GameConqueror.py
++++ b/gui/GameConqueror.py
+@@ -32,6 +32,10 @@ import threading
+ import json
+ import re
+ 
++import site
++import functools
++functools.reduce(lambda k, p: site.addsitedir(p, k), [@pythonPaths@], site._init_pathinfo())
++
+ import gi
+ gi.require_version('Gtk', '3.0')
+ from gi.repository import Gtk
